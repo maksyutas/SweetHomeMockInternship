@@ -727,8 +727,7 @@ public class FurnitureTable extends JTable implements View, Printable {
    * Prints this component to make it fill <code>pageFormat</code> imageable size.
    */
   public int print(Graphics g, PageFormat pageFormat, int pageIndex) throws PrinterException {
-    // Create a printable column model from the column model of this table 
-    // with printable renderers for each column
+    // Create a printable column model from the column model of this table  column
     DefaultTableColumnModel printableColumnModel = new DefaultTableColumnModel();
     TableColumnModel columnModel = getColumnModel();
     final DefaultTableCellRenderer defaultRenderer = new DefaultTableCellRenderer();
@@ -778,7 +777,55 @@ public class FurnitureTable extends JTable implements View, Printable {
       // Change printable column header renderer
       printableColumn.setHeaderRenderer(printableHeaderRenderer);
       printableColumnModel.addColumn(printableColumn);
-    }    
+    }
+    boolean hasLevelColumn = false;
+    for (int i = 0; i < printableColumnModel.getColumnCount(); i++) {
+      TableColumn col = printableColumnModel.getColumn(i);
+      if ("LEVEL".equals(col.getIdentifier())) {
+        hasLevelColumn = true;
+        break;
+      }
+    }
+    if (!hasLevelColumn) {
+      TableColumn levelTableColumn = new TableColumn();
+      levelTableColumn.setIdentifier("LEVEL");
+      levelTableColumn.setHeaderValue("Level");
+      levelTableColumn.setCellRenderer(new DefaultTableCellRenderer() {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                                                       boolean isSelected, boolean hasFocus, int row, int column) {
+          String levelName = "";
+          if (value instanceof HomePieceOfFurniture) {
+            Level level = ((HomePieceOfFurniture) value).getLevel();
+            levelName = level != null ? level.getName() : "";
+          } else if (value instanceof Level) {
+            levelName = ((Level) value).getName();
+          } else if (row >= 0 && table.getModel() != null) {
+            int modelRow = table.convertRowIndexToModel(row);
+            if (modelRow >= 0 && modelRow < table.getModel().getRowCount()) {
+              for (int col = 0; col < table.getModel().getColumnCount(); col++) {
+                Object cellVal = table.getModel().getValueAt(modelRow, col);
+                if (cellVal instanceof HomePieceOfFurniture) {
+                  Level level = ((HomePieceOfFurniture) cellVal).getLevel();
+                  levelName = level != null ? level.getName() : "";
+                  break;
+                } else if (cellVal instanceof Level) {
+                  levelName = ((Level) cellVal).getName();
+                  break;
+                }
+              }
+            }
+          }
+          Component rendererComponent = super.getTableCellRendererComponent(
+                  table, levelName, isSelected, hasFocus, row, column);
+          rendererComponent.setBackground(Color.WHITE);
+          rendererComponent.setForeground(Color.BLACK);
+          return rendererComponent;
+        }
+      });
+      levelTableColumn.setHeaderRenderer(printableHeaderRenderer);
+      printableColumnModel.addColumn(levelTableColumn);
+    }
     return print(g, pageFormat, pageIndex, printableColumnModel, Color.BLACK);
   }
 
@@ -968,7 +1015,6 @@ public class FurnitureTable extends JTable implements View, Printable {
     }
     writer.write(System.getProperty("line.separator"));
   }
-  
   /**
    * Returns a CSV formatted text describing the selected pieces of <code>furniture</code>.  
    */

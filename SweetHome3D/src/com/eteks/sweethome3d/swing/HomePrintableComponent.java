@@ -42,6 +42,8 @@ import java.util.HashSet;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -177,7 +179,17 @@ public class HomePrintableComponent extends JComponent implements Printable {
       return null;
     }
   }
-  
+
+  private List<Level> getViewableLevels() {
+    List<Level> viewableLevels = new ArrayList<Level>();
+    for (Level level : this.home.getLevels()) {
+      if (level.isViewable()) {
+        viewableLevels.add(level);
+      }
+    }
+    return viewableLevels;
+  }
+
   /**
    * Prints a given <code>page</code>.
    */
@@ -342,7 +354,7 @@ public class HomePrintableComponent extends JComponent implements Printable {
       }
     }
     
-    View furnitureView = this.controller.getFurnitureController().getView();
+    /*View furnitureView = this.controller.getFurnitureController().getView();
     if (furnitureView != null 
         && (homePrint == null || homePrint.isFurniturePrinted())) {
       FurnitureTable furnitureTable = null;
@@ -387,8 +399,74 @@ public class HomePrintableComponent extends JComponent implements Printable {
         this.printablePages.add(page);
         this.planPageCount++;
       }
+    }*/
+
+    final Level previousSelectedLevel = this.home.getSelectedLevel();
+    try {
+      View furnitureView = this.controller.getFurnitureController().getView();
+      if (furnitureView != null
+              && (homePrint == null || homePrint.isFurniturePrinted())) {
+        FurnitureTable furnitureTable = null;
+        final FurnitureTable.FurnitureFilter previousFurnitureFilter;
+        if (furnitureView instanceof FurnitureTable
+                && (homePrint == null
+                || homePrint.isPlanPrinted()
+                || homePrint.isView3DPrinted())) {
+          furnitureTable = (FurnitureTable) furnitureView;
+          previousFurnitureFilter = furnitureTable.getFurnitureFilter();
+          furnitureTable.setFurnitureFilter(new FurnitureTable.FurnitureFilter() {
+            public boolean include(Home home, HomePieceOfFurniture piece) {
+              return (previousFurnitureFilter == null || previousFurnitureFilter.include(home, piece))
+                      && (piece.getLevel() == null || piece.getLevel().isViewable());
+            }
+          });
+        } else {
+          previousFurnitureFilter = null;
+        }
+
+        try {
+          pageExists = ((Printable) furnitureView).print(g2D, pageFormat, page);
+        } finally {
+          if (furnitureTable != null) {
+            furnitureTable.setFurnitureFilter(previousFurnitureFilter);
+          }
+        }
+
+        if (pageExists == PAGE_EXISTS
+                && !this.printablePages.contains(page)) {
+          this.printablePages.add(page);
+          this.furniturePageCount++;
+        }
+      }
+
+      if (pageExists == NO_SUCH_PAGE
+              && planView != null
+              && (homePrint == null || homePrint.isPlanPrinted())) {
+        int planPageIndex = page - this.furniturePageCount;
+        pageExists = ((Printable) planView).print(g2D, pageFormat, planPageIndex);
+        if (pageExists == PAGE_EXISTS
+                && !this.printablePages.contains(page)) {
+          this.printablePages.add(page);
+          this.planPageCount++;
+        }
+      }
+
+      View view3D = this.controller.getHomeController3D().getView();
+      if (pageExists == NO_SUCH_PAGE
+              && view3D != null
+              && (homePrint == null || homePrint.isView3DPrinted())) {
+        pageExists = ((Printable) view3D).print(g2D, pageFormat, page - this.planPageCount - this.furniturePageCount);
+        if (pageExists == PAGE_EXISTS
+                && !this.printablePages.contains(page)) {
+          this.printablePages.add(page);
+        }
+      }
+    } finally {
+      if (this.home.getSelectedLevel() != previousSelectedLevel) {
+        this.home.setSelectedLevel(previousSelectedLevel);
+      }
     }
-    View view3D = this.controller.getHomeController3D().getView();
+    /*View view3D = this.controller.getHomeController3D().getView();
     if (pageExists == NO_SUCH_PAGE
         && view3D != null
         && (homePrint == null || homePrint.isView3DPrinted())) {
@@ -397,8 +475,10 @@ public class HomePrintableComponent extends JComponent implements Printable {
           && !this.printablePages.contains(page)) {
         this.printablePages.add(page);
       }
-    }
-    
+    }*/
+
+
+
     // Print header and footer
     if (pageExists == PAGE_EXISTS) {
       g2D.setTransform(oldTransform);
