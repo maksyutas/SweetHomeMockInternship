@@ -442,7 +442,15 @@ public class HomeFurnitureGroup extends HomePieceOfFurniture {
       return super.getHeight();
     }
   }
-  
+
+  /**
+   * Returns the volume of this group (width * depth * height).
+   */
+  @Override
+  public float getVolume() {
+    return getWidth() * getDepth() * getHeight();
+  }
+
   /**
    * Returns the elevation at which should be placed an object dropped on this group.
    * @since 4.4 
